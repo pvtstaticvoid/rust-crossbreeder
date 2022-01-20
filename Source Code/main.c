@@ -18,7 +18,7 @@ int GENES[NUM_UNIQ_GENES] = {'G', 'H', 'Y', 'W', 'X'};
 #define MAX_ITER 10
 
 // Maximum breeding multiplicity.
-#define MAX_MULTIPLICITY 3
+#define MAX_MULTIPLICITY 4
 
 // A breed structure.
 typedef struct breed_t {
@@ -130,15 +130,16 @@ bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running
 
     }
 
-    if (deterministic) {
-        printf("Deterministic!\t");
-        for (int w = 0; w < NUM_GENE_SLOTS; w++) {
-            printf("%c", GENES[argmax[w]]);
-        }
-        printf("\n");
-    } else {
-        printf("Ambiguous!\n");
-    }
+    // Debugging information.
+//    if (deterministic) {
+//        printf("Deterministic!\t");
+//        for (int w = 0; w < NUM_GENE_SLOTS; w++) {
+//            printf("%c", GENES[argmax[w]]);
+//        }
+//        printf("\n");
+//    } else {
+//        printf("Ambiguous!\n");
+//    }
 
     return deterministic;
 
@@ -186,21 +187,29 @@ int main() {
     assert(running_table_len >= MAX_MULTIPLICITY);
 
     // Main loop.
-    for (int iter = 0; iter < MAX_ITER; iter++) {
-        for (int max_mult_curr_iter = 2; max_mult_curr_iter < MAX_MULTIPLICITY; max_mult_curr_iter++) {
+
+    int pivot_idx = 0;
+    for (int iter = 0; iter < MAX_ITER, pivot_idx < running_table_len; iter++, pivot_idx++) {
+
+        printf("\n\n\nIteration %d.\n", iter);
+
+        for (int mult_curr_iter = 1; mult_curr_iter <= MAX_MULTIPLICITY; mult_curr_iter++) {
 
             // Temporary.
-            max_mult_curr_iter = 2;
+            if (mult_curr_iter != 4) {
+                continue;
+            }
 
             // An index array for the next batch of breeds to be crossbred.
-            int batch[max_mult_curr_iter];
+            int batch[mult_curr_iter];
             memset(batch, 0, sizeof(batch));
+            batch[mult_curr_iter - 1] = pivot_idx;
 
             // Crossbreeding loop.
             while (true) {
 
                 // Crossbreed current batch of genes.
-                crossbreed(ordered_table, running_table, &running_table_len, batch, max_mult_curr_iter);
+                crossbreed(ordered_table, running_table, &running_table_len, batch, mult_curr_iter);
 
                 // Loop variables.
                 int batch_idx = 0;
@@ -210,14 +219,14 @@ int main() {
                 // Increment the batch array.
                 while (true) {
 
-                    // Break if we've hit the multiplicity limit.
-                    if (batch_idx == max_mult_curr_iter) {
+                    // Break if we've hit the multiplicity limit (where the last breed is a fixed pivot).
+                    if (batch_idx == mult_curr_iter - 1) {
                         done = true;
                         break;
                     }
 
                     // Otherwise, increment the current digit in the array, carrying over if needed.
-                    if (batch[batch_idx] < running_table_len - 1) {
+                    if (batch[batch_idx] < running_table_len - 1 && batch[batch_idx] < batch[mult_curr_iter - 1]) {
                         batch[batch_idx]++;
                         break;
                     } else {
@@ -238,10 +247,6 @@ int main() {
                 }
 
             }
-
-            // Temporary.
-            exit(0);
-
         }
     }
 }
