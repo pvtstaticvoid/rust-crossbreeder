@@ -5,48 +5,55 @@
 #include <math.h>
 #include <string.h>
 #include <stdbool.h>
+#include <assert.h>
 
-// Number of unique genes (GHYWX).
-#define GENE_UNIQ 5
+// Number of different gene types (GHYWX).
+#define NUM_UNIQ_GENES 5
+int GENES[NUM_UNIQ_GENES] = {'G', 'H', 'Y', 'W', 'X'};
 
-// Length of genes in a breed.
-#define GENE_LEN 6
+// Number of gene slots in a breed (______).
+#define NUM_GENE_SLOTS 6
 
-// Max numebr of interations.
+// Max number of iterations.
 #define MAX_ITER 10
 
 // Maximum breeding multiplicity.
 #define MAX_MULTIPLICITY 3
 
+// A breed structure.
 typedef struct breed_t {
+
     int num_parents;
     struct breed_t *p0;
     struct breed_t *p1;
     struct breed_t *p2;
-    // this will end up not being a C string :(
-    char genes[7];
+
+    int genes[7];
+    char genes_str[7];
+
 } breed_t;
 
-
-// GHYWX
+/**
+ * Given a breed's genes, calculate its index in the ordered lookup table.
+ */
 int get_index(const char *genes) {
     int index = 0;
-    for (int i = 0; i < GENE_LEN; i++) {
+    for (int i = 0; i < NUM_GENE_SLOTS; i++) {
         switch (genes[i]) {
             case 'G':
-                index += 0 * (int) pow(GENE_UNIQ, GENE_LEN - i - 1);
+                index += 0 * (int) pow(NUM_UNIQ_GENES, NUM_GENE_SLOTS - i - 1);
                 break;
             case 'H':
-                index += 1 * (int) pow(GENE_UNIQ, GENE_LEN - i - 1);
+                index += 1 * (int) pow(NUM_UNIQ_GENES, NUM_GENE_SLOTS - i - 1);
                 break;
             case 'Y':
-                index += 2 * (int) pow(GENE_UNIQ, GENE_LEN - i - 1);
+                index += 2 * (int) pow(NUM_UNIQ_GENES, NUM_GENE_SLOTS - i - 1);
                 break;
             case 'W':
-                index += 3 * (int) pow(GENE_UNIQ, GENE_LEN - i - 1);
+                index += 3 * (int) pow(NUM_UNIQ_GENES, NUM_GENE_SLOTS - i - 1);
                 break;
             case 'X':
-                index += 4 * (int) pow(GENE_UNIQ, GENE_LEN - i - 1);
+                index += 4 * (int) pow(NUM_UNIQ_GENES, NUM_GENE_SLOTS - i - 1);
                 break;
             default:
                 fprintf(stderr, "invalid gene: %c", genes[i]);
@@ -56,194 +63,185 @@ int get_index(const char *genes) {
     return index;
 }
 
+/**
+ * Crossbreed a batch of breeds, and update the provided lookup tables when done.
+ */
+bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running_table_len,
+                int batch[], int mult) {
 
-bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *n,
-                int I[], int m) {
-
-    for (int k = 0; k < m; k++) {
-        printf("%d: %s\t", I[k], running_table[I[k]]->genes);
+    // Debugging information.
+    for (int k = 0; k < mult; k++) {
+        printf("%d: %s\t", batch[k], running_table[batch[k]]->genes_str);
     }
     printf("\n");
 
-    int W[GENE_LEN][GENE_UNIQ] = {0};
+    // Aggregate gene weight array.
+    int W[NUM_GENE_SLOTS][NUM_UNIQ_GENES] = {0};
 
-    // for each breed
-    for (int i = 0; i < m; i++) {
-        // for each gene
-        for (int g = 0; g < GENE_LEN; g++) {
-
-            switch (running_table[I[i]]->genes[g]) {
+    // Add up all gene weights.
+    for (int batch_idx = 0; batch_idx < mult; batch_idx++) {
+        for (int slot = 0; slot < NUM_GENE_SLOTS; slot++) {
+            switch (running_table[batch[batch_idx]]->genes_str[slot]) {
                 case 'G':
-                    W[g][0] += 6;
+                    W[slot][0] += 6;
                     break;
                 case 'H':
-                    W[g][1] += 6;
+                    W[slot][1] += 6;
                     break;
                 case 'Y':
-                    W[g][2] += 6;
+                    W[slot][2] += 6;
                     break;
                 case 'W':
-                    W[g][3] += 10;
+                    W[slot][3] += 10;
                     break;
                 case 'X':
-                    W[g][4] += 10;
+                    W[slot][4] += 10;
                     break;
                 default:
-                    fprintf(stderr, "invalid gene: %c", running_table[I[i]]->genes[g]);
+                    fprintf(stderr, "Invalid gene.");
                     exit(1);
             }
         }
-
     }
 
+    bool deterministic = true;
+    int argmax[NUM_UNIQ_GENES] = {0};
 
-    bool ambiguous = false;
+    // Loop over each slot, and check if there is a maximum gene weight.
+    for (int slot = 0; slot < NUM_GENE_SLOTS; slot++) {
 
-
-    // for each gene slot
-    for (int g = 0; g < GENE_LEN; g++) {
-
-        int argmax = 0;
         int max = -1;
-        bool uniq = true;
+        bool unique_max = true;
 
-        // for each weight
-        for (int w = 0; w < GENE_UNIQ; w++) {
-
-//            printf("%d ", W[g][w]);
-
-
-            if (W[g][w] > max) {
-                max = W[g][w];
-                argmax = w;
-            } else if (W[g][w] == max) {
-                uniq = false;
-                break;
+        for (int gene = 0; gene < NUM_UNIQ_GENES; gene++) {
+            if (W[slot][gene] > max) {
+                max = W[slot][gene];
+                argmax[slot] = gene;
+                unique_max = true;
+            } else if (W[slot][gene] == max) {
+                unique_max = false;
             }
-
-
         }
-//        printf("\n");
 
-        if (uniq == false) {
-            ambiguous = true;
+        if (!unique_max) {
+            deterministic = false;
             break;
         }
 
     }
 
-
-    if (ambiguous) {
-        printf("Ambiguous!\n");
+    if (deterministic) {
+        printf("Deterministic!\t");
+        for (int w = 0; w < NUM_GENE_SLOTS; w++) {
+            printf("%c", GENES[argmax[w]]);
+        }
+        printf("\n");
     } else {
-        printf("Deterministic!\n");
+        printf("Ambiguous!\n");
     }
 
+    return deterministic;
+
 }
-
-
 
 int main() {
 
     // CMake only.
     chdir("../Source Code");
 
-    breed_t* ordered_table[(int) pow(GENE_UNIQ, GENE_LEN)];
-    breed_t* running_table[(int) pow(GENE_UNIQ, GENE_LEN)];
-    int n = 0;
+    // Lookup tables.
+    breed_t* ordered_table[(int) pow(NUM_UNIQ_GENES, NUM_GENE_SLOTS)];
+    breed_t* running_table[(int) pow(NUM_UNIQ_GENES, NUM_GENE_SLOTS)];
 
+    // Table counters.
+    int running_table_len = 0;
+    int running_table_curr = 0;
+
+    // Open data file.
     FILE *file = fopen("../Data/Set 1.txt", "r");
     if (!file) {
         perror("fopen");
         exit(1);
     }
 
+    // Read data file.
     char line[256];
-
-
-    // read data in
     while (fgets(line, sizeof(line), file)) {
 
         // Create the breed object.
         breed_t *breed = malloc(sizeof(breed_t));
         breed->num_parents = 0;
-        strncpy(breed->genes, line, 6);
+        strncpy(breed->genes_str, line, 6);
 
         // Calculate index and fill out pointers in the tables.
-        int index = get_index(breed->genes);
+        int index = get_index(breed->genes_str);
         ordered_table[index] = breed;
-        running_table[n] = breed;
-        n += 1;
+        running_table[running_table_len] = breed;
+        running_table_len += 1;
 
     }
 
-    printf("number of starter seeds: %d\n", n);
+    // Print data file summary.
+    printf("Number of starter seeds: %d.\n", running_table_len);
+    assert(running_table_len >= MAX_MULTIPLICITY);
 
-    if (n < MAX_MULTIPLICITY) {
-        fprintf(stderr, "Max multiplicity greater than number of starter seeds.\n");
-        exit(1);
-    }
-
+    // Main loop.
     for (int iter = 0; iter < MAX_ITER; iter++) {
+        for (int max_mult_curr_iter = 2; max_mult_curr_iter < MAX_MULTIPLICITY; max_mult_curr_iter++) {
 
-        for (int m = 2; m < MAX_MULTIPLICITY; m++) {
+            // Temporary.
+            max_mult_curr_iter = 2;
 
-            m = 2;
+            // An index array for the next batch of breeds to be crossbred.
+            int batch[max_mult_curr_iter];
+            memset(batch, 0, sizeof(batch));
 
+            // Crossbreeding loop.
+            while (true) {
 
-            int I[m];
-            for (int i = 0; i < m; i++) {
-                I[i] = 0;
-            }
+                // Crossbreed current batch of genes.
+                crossbreed(ordered_table, running_table, &running_table_len, batch, max_mult_curr_iter);
 
-            while (1) {
+                // Loop variables.
+                int batch_idx = 0;
+                bool carry = false;
+                bool done = false;
 
-                // do stuff;
-                crossbreed(ordered_table, running_table, &n, I, m);
+                // Increment the batch array.
+                while (true) {
 
-
-                int i = 0;
-
-                int carry = 0;
-                int brk = 0;
-
-                while (1) {
-
-                    if (i == m) {
-                        brk = 1;
+                    // Break if we've hit the multiplicity limit.
+                    if (batch_idx == max_mult_curr_iter) {
+                        done = true;
                         break;
                     }
 
-                    if (I[i] < n - 1) {
-                        I[i]++;
+                    // Otherwise, increment the current digit in the array, carrying over if needed.
+                    if (batch[batch_idx] < running_table_len - 1) {
+                        batch[batch_idx]++;
                         break;
                     } else {
-                        carry = 1;
-                        i++;
+                        carry = true;
+                        batch_idx++;
                     }
+
                 }
 
-                if (brk) {
+                if (done) {
                     break;
                 }
 
                 if (carry) {
-                    for (int j = 0; j < i; j++) {
-                        I[j] = I[i];
+                    for (int carry_idx = 0; carry_idx < batch_idx; carry_idx++) {
+                        batch[carry_idx] = batch[batch_idx];
                     }
                 }
 
-
-
             }
 
-
-
+            // Temporary.
             exit(0);
 
         }
-
     }
-
-
 }
