@@ -15,10 +15,10 @@ char GENES[NUM_UNIQ_GENES] = {'G', 'H', 'Y', 'W', 'X'};
 #define NUM_GENE_SLOTS 6
 
 // Max number of iterations.
-#define MAX_ITER 100
+#define MAX_ITER 500
 
 // Maximum breeding multiplicity.
-#define MAX_MULTIPLICITY 5
+#define MAX_MULTIPLICITY 6
 
 // A breed structure.
 typedef struct breed_t {
@@ -30,6 +30,90 @@ typedef struct breed_t {
     char genes_str[7];
 
 } breed_t;
+
+/**
+ * Check
+ */
+bool check_good(char *genes, char *target) {
+    int net = 0;
+
+    for (int i = 0; i < NUM_GENE_SLOTS; i++) {
+        switch (genes[i]) {
+            case 'G':
+                net += 1;
+                break;
+            case 'H':
+                net += 10;
+                break;
+            case 'Y':
+                net += 100;
+                break;
+            case 'W':
+                net += 1000;
+                break;
+            case 'X':
+                net += 10000;
+                break;
+            default:
+                fprintf(stderr, "invalid gene: %c", genes[i]);
+                exit(1);
+        }
+    }
+
+    for (int i = 0; i < NUM_GENE_SLOTS; i++) {
+        switch (target[i]) {
+            case 'G':
+                net += -1;
+                break;
+            case 'H':
+                net += -10;
+                break;
+            case 'Y':
+                net += -100;
+                break;
+            case 'W':
+                net += -1000;
+                break;
+            case 'X':
+                net += -10000;
+                break;
+            default:
+                fprintf(stderr, "invalid gene: %c", genes[i]);
+                exit(1);
+        }
+    }
+
+    if (net == 0) {
+        return true;
+    } else {
+        return false;
+    }
+
+}
+
+/**
+ * Given a breed's genes, calculate its score.
+ */
+int get_score(const char *genes) {
+    int score = 0;
+    for (int i = 0; i < NUM_GENE_SLOTS; i++) {
+        switch (genes[i]) {
+            case 'G':
+            case 'H':
+            case 'Y':
+                score += 1;
+                break;
+            case 'W':
+            case 'X':
+                score += 0;
+                break;
+            default:
+                fprintf(stderr, "invalid gene: %c", genes[i]);
+                exit(1);
+        }
+    }
+    return score;
+}
 
 /**
  * Given a breed's genes, calculate its index in the ordered lookup table.
@@ -142,22 +226,36 @@ bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running
         int ordered_table_idx = get_index(new_genes);
         if (ordered_table[ordered_table_idx]) {
 //            printf("exists, skipping!\n");
+        } else if (get_score(new_genes) < 5) {
+//            printf("too many reds\n");
         } else {
 
             breed_t *new_breed = malloc(sizeof(breed_t));
 
+            // fill out parents
             new_breed->num_parents = mult;
             for (int parent_idx = 0; parent_idx < mult; parent_idx++) {
                 new_breed->parents[parent_idx] = running_table[batch[parent_idx]];
             }
 
-            // TODO: fill out parents
+            // copy genes over
             strncpy(new_breed->genes_str, new_genes, NUM_GENE_SLOTS);
 
+            // calculate score
+            new_breed->score = get_score(new_breed->genes_str);
+
+            // insert into lookup tables
             ordered_table[ordered_table_idx] = new_breed;
             running_table[*running_table_len] = new_breed;
             *running_table_len += 1;
             printf("created a new breed %s with %d parents\n", new_breed->genes_str, mult);
+
+            if (check_good(new_breed->genes_str, "GGGYYY")) {
+                printf("FOUND IT!\n");
+                exit(0);
+            }
+
+
         }
     } else {
 //        printf("Ambiguous!\n");
@@ -195,6 +293,7 @@ int main() {
         breed_t *breed = malloc(sizeof(breed_t));
         breed->num_parents = 0;
         strncpy(breed->genes_str, line, 6);
+        breed->score = get_score(breed->genes_str);
 
         // Calculate index and fill out pointers in the tables.
         int index = get_index(breed->genes_str);
