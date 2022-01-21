@@ -9,25 +9,23 @@
 
 // Number of different gene types (GHYWX).
 #define NUM_UNIQ_GENES 5
-int GENES[NUM_UNIQ_GENES] = {'G', 'H', 'Y', 'W', 'X'};
+char GENES[NUM_UNIQ_GENES] = {'G', 'H', 'Y', 'W', 'X'};
 
 // Number of gene slots in a breed (______).
 #define NUM_GENE_SLOTS 6
 
 // Max number of iterations.
-#define MAX_ITER 10
+#define MAX_ITER 100
 
 // Maximum breeding multiplicity.
-#define MAX_MULTIPLICITY 4
+#define MAX_MULTIPLICITY 5
 
 // A breed structure.
 typedef struct breed_t {
 
     int num_parents;
-    struct breed_t *p0;
-    struct breed_t *p1;
-    struct breed_t *p2;
-
+    struct breed_t *parents[MAX_MULTIPLICITY];
+    int score;
     int genes[7];
     char genes_str[7];
 
@@ -70,10 +68,10 @@ bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running
                 int batch[], int mult) {
 
     // Debugging information.
-    for (int k = 0; k < mult; k++) {
-        printf("%d: %s\t", batch[k], running_table[batch[k]]->genes_str);
-    }
-    printf("\n");
+//    for (int k = 0; k < mult; k++) {
+//        printf("%d: %s\t", batch[k], running_table[batch[k]]->genes_str);
+//    }
+//    printf("\n");
 
     // Aggregate gene weight array.
     int W[NUM_GENE_SLOTS][NUM_UNIQ_GENES] = {0};
@@ -130,16 +128,40 @@ bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running
 
     }
 
+    char new_genes[7];
+    new_genes[6] = '\0';
+
     // Debugging information.
-//    if (deterministic) {
+    if (deterministic) {
 //        printf("Deterministic!\t");
-//        for (int w = 0; w < NUM_GENE_SLOTS; w++) {
-//            printf("%c", GENES[argmax[w]]);
-//        }
-//        printf("\n");
-//    } else {
+        for (int w = 0; w < NUM_GENE_SLOTS; w++) {
+            new_genes[w] = GENES[argmax[w]];
+        }
+//        printf("%s\n", new_genes);
+
+        int ordered_table_idx = get_index(new_genes);
+        if (ordered_table[ordered_table_idx]) {
+//            printf("exists, skipping!\n");
+        } else {
+
+            breed_t *new_breed = malloc(sizeof(breed_t));
+
+            new_breed->num_parents = mult;
+            for (int parent_idx = 0; parent_idx < mult; parent_idx++) {
+                new_breed->parents[parent_idx] = running_table[batch[parent_idx]];
+            }
+
+            // TODO: fill out parents
+            strncpy(new_breed->genes_str, new_genes, NUM_GENE_SLOTS);
+
+            ordered_table[ordered_table_idx] = new_breed;
+            running_table[*running_table_len] = new_breed;
+            *running_table_len += 1;
+            printf("created a new breed %s with %d parents\n", new_breed->genes_str, mult);
+        }
+    } else {
 //        printf("Ambiguous!\n");
-//    }
+    }
 
     return deterministic;
 
@@ -159,7 +181,7 @@ int main() {
     int running_table_curr = 0;
 
     // Open data file.
-    FILE *file = fopen("../Data/Set 1.txt", "r");
+    FILE *file = fopen("../Data/Set 2.txt", "r");
     if (!file) {
         perror("fopen");
         exit(1);
@@ -189,16 +211,16 @@ int main() {
     // Main loop.
 
     int pivot_idx = 0;
-    for (int iter = 0; iter < MAX_ITER, pivot_idx < running_table_len; iter++, pivot_idx++) {
+    for (int iter = 0; iter < MAX_ITER && pivot_idx < running_table_len; iter++, pivot_idx++) {
 
         printf("\n\n\nIteration %d.\n", iter);
 
         for (int mult_curr_iter = 1; mult_curr_iter <= MAX_MULTIPLICITY; mult_curr_iter++) {
 
             // Temporary.
-            if (mult_curr_iter != 4) {
-                continue;
-            }
+//            if (mult_curr_iter != 3) {
+//                continue;
+//            }
 
             // An index array for the next batch of breeds to be crossbred.
             int batch[mult_curr_iter];
@@ -249,4 +271,7 @@ int main() {
             }
         }
     }
+
+    printf("Done iterations! The total running table length is %d!\n", running_table_len);
+
 }
