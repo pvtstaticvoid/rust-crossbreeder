@@ -15,10 +15,10 @@ char GENES[NUM_UNIQ_GENES] = {'G', 'H', 'Y', 'W', 'X'};
 #define NUM_GENE_SLOTS 6
 
 // Max number of iterations.
-#define MAX_ITER 500
+#define MAX_ITER 20
 
 // Maximum breeding multiplicity.
-#define MAX_MULTIPLICITY 6
+#define MAX_MULTIPLICITY 4
 
 // A breed structure.
 typedef struct breed_t {
@@ -146,6 +146,49 @@ int get_index(const char *genes) {
 }
 
 /**
+ * Try to add a new breed.
+ */
+bool try_add(breed_t* ordered_table[], breed_t* running_table[], int *running_table_len,
+             const int batch[], int mult, char *new_genes) {
+
+    int ordered_table_idx = get_index(new_genes);
+    if (ordered_table[ordered_table_idx]) {
+//            printf("exists, skipping!\n");
+    } else if (get_score(new_genes) < 5) {
+//            printf("too many reds\n");
+    } else {
+
+        breed_t *new_breed = malloc(sizeof(breed_t));
+
+        // fill out parents
+        new_breed->num_parents = mult;
+        for (int parent_idx = 0; parent_idx < mult; parent_idx++) {
+            new_breed->parents[parent_idx] = running_table[batch[parent_idx]];
+        }
+
+        // copy genes over
+        strncpy(new_breed->genes_str, new_genes, NUM_GENE_SLOTS);
+
+        // calculate score
+        new_breed->score = get_score(new_breed->genes_str);
+
+        // insert into lookup tables
+        ordered_table[ordered_table_idx] = new_breed;
+        running_table[*running_table_len] = new_breed;
+        *running_table_len += 1;
+        printf("created a new breed %s with %d parents\n", new_breed->genes_str, mult);
+
+        if (check_good(new_breed->genes_str, "GGGYYY")) {
+            printf("FOUND IT!\n");
+            exit(0);
+        }
+
+
+    }
+}
+
+
+/**
  * Crossbreed a batch of breeds, and update the provided lookup tables when done.
  */
 bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running_table_len,
@@ -223,40 +266,8 @@ bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running
         }
 //        printf("%s\n", new_genes);
 
-        int ordered_table_idx = get_index(new_genes);
-        if (ordered_table[ordered_table_idx]) {
-//            printf("exists, skipping!\n");
-        } else if (get_score(new_genes) < 5) {
-//            printf("too many reds\n");
-        } else {
+        try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes);
 
-            breed_t *new_breed = malloc(sizeof(breed_t));
-
-            // fill out parents
-            new_breed->num_parents = mult;
-            for (int parent_idx = 0; parent_idx < mult; parent_idx++) {
-                new_breed->parents[parent_idx] = running_table[batch[parent_idx]];
-            }
-
-            // copy genes over
-            strncpy(new_breed->genes_str, new_genes, NUM_GENE_SLOTS);
-
-            // calculate score
-            new_breed->score = get_score(new_breed->genes_str);
-
-            // insert into lookup tables
-            ordered_table[ordered_table_idx] = new_breed;
-            running_table[*running_table_len] = new_breed;
-            *running_table_len += 1;
-            printf("created a new breed %s with %d parents\n", new_breed->genes_str, mult);
-
-            if (check_good(new_breed->genes_str, "GGGYYY")) {
-                printf("FOUND IT!\n");
-                exit(0);
-            }
-
-
-        }
     } else {
 //        printf("Ambiguous!\n");
     }
