@@ -15,10 +15,10 @@ char GENES[NUM_UNIQ_GENES] = {'G', 'H', 'Y', 'W', 'X'};
 #define NUM_GENE_SLOTS 6
 
 // Max number of iterations.
-#define MAX_ITER 20
+#define MAX_ITER 10
 
 // Maximum breeding multiplicity.
-#define MAX_MULTIPLICITY 4
+#define MAX_MULTIPLICITY 8
 
 // A breed structure.
 typedef struct breed_t {
@@ -192,7 +192,8 @@ bool try_add(breed_t* ordered_table[], breed_t* running_table[], int *running_ta
  * Crossbreed a batch of breeds, and update the provided lookup tables when done.
  */
 bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running_table_len,
-                int batch[], int mult) {
+                int batch[], int mult,
+                bool has_base, int base_idx) {
 
     // Debugging information.
 //    for (int k = 0; k < mult; k++) {
@@ -230,21 +231,42 @@ bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running
     }
 
     bool deterministic = true;
-    int argmax[NUM_UNIQ_GENES] = {0};
+    int argmax2d[NUM_GENE_SLOTS][NUM_UNIQ_GENES] = {0};
+    int num_maxima[NUM_GENE_SLOTS] = {0};
+    int maxima[NUM_GENE_SLOTS];
 
     // Loop over each slot, and check if there is a maximum gene weight.
     for (int slot = 0; slot < NUM_GENE_SLOTS; slot++) {
 
-        int max = -1;
+        // skip the base clone for now, if there is one
+        if (has_base && slot == base_idx) {
+            continue;
+        }
+
         bool unique_max = true;
+        maxima[slot] = -1;
 
         for (int gene = 0; gene < NUM_UNIQ_GENES; gene++) {
-            if (W[slot][gene] > max) {
-                max = W[slot][gene];
-                argmax[slot] = gene;
+            if (W[slot][gene] > maxima[slot]) {
+
+                // temp
                 unique_max = true;
-            } else if (W[slot][gene] == max) {
+
+                // update maxima
+                maxima[slot] = W[slot][gene];
+
+                // reset argmax
+                argmax2d[slot][0] = gene;
+                num_maxima[slot] = 1;
+
+            } else if (W[slot][gene] == maxima[slot]) {
+
+                // temp
                 unique_max = false;
+
+                // update argmax
+                argmax2d[slot][num_maxima[slot]] = gene;
+                num_maxima[slot] += 1;
             }
         }
 
@@ -262,7 +284,7 @@ bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running
     if (deterministic) {
 //        printf("Deterministic!\t");
         for (int w = 0; w < NUM_GENE_SLOTS; w++) {
-            new_genes[w] = GENES[argmax[w]];
+            new_genes[w] = GENES[argmax2d[w][0]];
         }
 //        printf("%s\n", new_genes);
 
@@ -290,7 +312,7 @@ int main() {
     int running_table_curr = 0;
 
     // Open data file.
-    FILE *file = fopen("../Data/Set 2.txt", "r");
+    FILE *file = fopen("../Data/Set 5.txt", "r");
     if (!file) {
         perror("fopen");
         exit(1);
@@ -341,7 +363,14 @@ int main() {
             while (true) {
 
                 // Crossbreed current batch of genes.
-                crossbreed(ordered_table, running_table, &running_table_len, batch, mult_curr_iter);
+                crossbreed(ordered_table, running_table, &running_table_len, batch, mult_curr_iter, false, -1);
+
+//                // base plant might matter
+//                if (2 <= mult_curr_iter && mult_curr_iter <= 5) {
+//                    for (int base = 0; base < mult_curr_iter; base++) {
+//                        crossbreed(ordered_table, running_table, &running_table_len, batch, mult_curr_iter, true, base);
+//                    }
+//                }
 
                 // Loop variables.
                 int batch_idx = 0;
