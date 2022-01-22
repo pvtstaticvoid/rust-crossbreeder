@@ -328,109 +328,114 @@ bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running
     char new_genes_2[7];
     new_genes_2[6] = '\0';
 
-    // now let's handle the base
+    // base case only
     if (has_base) {
-
         // strncpy
         strncpy(new_genes_0, running_table[batch[base_idx]]->genes_str, 6);
         strncpy(new_genes_1, running_table[batch[base_idx]]->genes_str, 6);
         strncpy(new_genes_2, running_table[batch[base_idx]]->genes_str, 6);
+    }
 
-        // Loop over each slot, and check if there is a maximum gene weight.
-        for (int slot = 0; slot < NUM_GENE_SLOTS; slot++) {
-            if (max_wt[slot] > 10) {
-                // there is a double up
-                // use original algorithm
+    bool no_base_ignore = false;
 
-                if (num_maxima[slot] == 1) {
-                    // unique max
-                    new_genes_0[slot] = GENES[argmax2d[slot][0]];
-                    new_genes_1[slot] = GENES[argmax2d[slot][0]];
-                    new_genes_2[slot] = GENES[argmax2d[slot][0]];
+    // Loop over each slot, and check if there is a maximum gene weight.
+    for (int slot = 0; slot < NUM_GENE_SLOTS; slot++) {
+        if (max_wt[slot] > 10) {
+            // there is a double up
+            // base breed does not matter
+
+            if (num_maxima[slot] == 1) {
+                // unique max
+                new_genes_0[slot] = GENES[argmax2d[slot][0]];
+                new_genes_1[slot] = GENES[argmax2d[slot][0]];
+                new_genes_2[slot] = GENES[argmax2d[slot][0]];
+            } else {
+
+                // multiple maxima...
+
+                if (W[slot][3] == max_wt[slot] && W[slot][4] == max_wt[slot]) {
+
+                    // both reds
+                    new_genes_0[slot] = 'W';
+                    new_genes_1[slot] = 'X';
+                    new_genes_2[slot] = 'X';
+                    num_slots_ambig += 1;
+                    chance = 0.5;
+                    has_chance = true;
+
+                } else if (W[slot][3] == max_wt[slot]) {
+                    // W only
+                    new_genes_0[slot] = 'W';
+                    new_genes_1[slot] = 'W';
+                    new_genes_2[slot] = 'W';
+
+                } else if (W[slot][4] == max_wt[slot]) {
+                    // X only
+                    new_genes_0[slot] = 'X';
+                    new_genes_1[slot] = 'X';
+                    new_genes_2[slot] = 'X';
+                } else if (W[slot][0] == max_wt[slot] && W[slot][1] == max_wt[slot] && W[slot][2] == max_wt[slot]) {
+                    // all greens
+                    new_genes_0[slot] = 'G';
+                    new_genes_1[slot] = 'H';
+                    new_genes_2[slot] = 'Y';
+                    num_slots_ambig += 1;
+                    chance = 0.33;
+                    has_chance = true;
+
+                } else if (W[slot][0] == max_wt[slot] && W[slot][1] == max_wt[slot]) {
+                    // GH_
+                    new_genes_0[slot] = 'G';
+                    new_genes_1[slot] = 'H';
+                    new_genes_2[slot] = 'H';
+                    num_slots_ambig += 1;
+                    chance = 0.5;
+                    has_chance = true;
+                } else if (W[slot][0] == max_wt[slot] && W[slot][2] == max_wt[slot]) {
+                    // G_Y
+                    new_genes_0[slot] = 'G';
+                    new_genes_1[slot] = 'Y';
+                    new_genes_2[slot] = 'Y';
+                    num_slots_ambig += 1;
+                    chance = 0.5;
+                    has_chance = true;
+                } else if (W[slot][1] == max_wt[slot] && W[slot][2] == max_wt[slot]) {
+                    // _HY
+                    new_genes_0[slot] = 'H';
+                    new_genes_1[slot] = 'Y';
+                    new_genes_2[slot] = 'Y';
+                    num_slots_ambig += 1;
+                    chance = 0.5;
+                    has_chance = true;
+                } else if (W[slot][0] == max_wt[slot]) {
+                    // G only
+                    new_genes_0[slot] = 'G';
+                    new_genes_1[slot] = 'G';
+                    new_genes_2[slot] = 'G';
+                } else if (W[slot][1] == max_wt[slot]) {
+                    // H only
+                    new_genes_0[slot] = 'H';
+                    new_genes_1[slot] = 'H';
+                    new_genes_2[slot] = 'H';
+                } else if (W[slot][2] == max_wt[slot]) {
+                    // Y only
+                    new_genes_0[slot] = 'Y';
+                    new_genes_1[slot] = 'Y';
+                    new_genes_2[slot] = 'Y';
                 } else {
-
-                    // multiple maxima...
-
-                    if (W[slot][3] == max_wt[slot] && W[slot][4] == max_wt[slot]) {
-
-                        // both reds
-                        new_genes_0[slot] = 'W';
-                        new_genes_1[slot] = 'X';
-                        new_genes_2[slot] = 'X';
-                        num_slots_ambig += 1;
-                        chance = 0.5;
-                        has_chance = true;
-
-                    } else if (W[slot][3] == max_wt[slot]) {
-                        // W only
-                        new_genes_0[slot] = 'W';
-                        new_genes_1[slot] = 'W';
-                        new_genes_2[slot] = 'W';
-
-                    } else if (W[slot][4] == max_wt[slot]) {
-                        // X only
-                        new_genes_0[slot] = 'X';
-                        new_genes_1[slot] = 'X';
-                        new_genes_2[slot] = 'X';
-                    } else if (W[slot][0] == max_wt[slot] && W[slot][1] == max_wt[slot] && W[slot][2] == max_wt[slot]) {
-                        // all greens
-                        new_genes_0[slot] = 'G';
-                        new_genes_1[slot] = 'H';
-                        new_genes_2[slot] = 'Y';
-                        num_slots_ambig += 1;
-                        chance = 0.33;
-                        has_chance = true;
-
-                    } else if (W[slot][0] == max_wt[slot] && W[slot][1] == max_wt[slot]) {
-                        // GH_
-                        new_genes_0[slot] = 'G';
-                        new_genes_1[slot] = 'H';
-                        new_genes_2[slot] = 'H';
-                        num_slots_ambig += 1;
-                        chance = 0.5;
-                        has_chance = true;
-                    } else if (W[slot][0] == max_wt[slot] && W[slot][2] == max_wt[slot]) {
-                        // G_Y
-                        new_genes_0[slot] = 'G';
-                        new_genes_1[slot] = 'Y';
-                        new_genes_2[slot] = 'Y';
-                        num_slots_ambig += 1;
-                        chance = 0.5;
-                        has_chance = true;
-                    } else if (W[slot][1] == max_wt[slot] && W[slot][2] == max_wt[slot]) {
-                        // _HY
-                        new_genes_0[slot] = 'H';
-                        new_genes_1[slot] = 'Y';
-                        new_genes_2[slot] = 'Y';
-                        num_slots_ambig += 1;
-                        chance = 0.5;
-                        has_chance = true;
-                    } else if (W[slot][0] == max_wt[slot]) {
-                        // G only
-                        new_genes_0[slot] = 'G';
-                        new_genes_1[slot] = 'G';
-                        new_genes_2[slot] = 'G';
-                    } else if (W[slot][1] == max_wt[slot]) {
-                        // H only
-                        new_genes_0[slot] = 'H';
-                        new_genes_1[slot] = 'H';
-                        new_genes_2[slot] = 'H';
-                    } else if (W[slot][2] == max_wt[slot]) {
-                        // Y only
-                        new_genes_0[slot] = 'Y';
-                        new_genes_1[slot] = 'Y';
-                        new_genes_2[slot] = 'Y';
-                    } else {
-                        printf("fuck\n");
-                        exit(1);
-                    }
-
+                    printf("fuck\n");
+                    exit(1);
                 }
 
+            }
 
 
-            } else {
-                // there is not a double up, more work needs to be done...
+
+        } else {
+            // there is not a double up, special consideration for base breeds required
+
+
+            if (has_base) {
 
                 if (W[slot][3] > 0 && W[slot][4] > 0) {
 
@@ -499,36 +504,37 @@ bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running
                     // slot unaffected
                 }
 
+            } else {
+
+                // no base
+                // since there are no double ups, this entire case is dependent on the base's genes, so ignore...
+                no_base_ignore = true;
+
             }
+
+
+        }
+    }
+
+    // only handle 1 ambiguous slot for now...
+    if (num_slots_ambig > 1) {
+        return false;
+    }
+
+    if (has_base) {
+        // has base
+        try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_0, true, base_idx, has_chance, chance);
+        try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_1, true, base_idx, has_chance, chance);
+        try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_2, true, base_idx, has_chance, chance);
+    } else {
+        // no base
+        if (!no_base_ignore) {
+            try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_0, false, -1, has_chance, chance);
+            try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_1, false, -1, has_chance, chance);
+            try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_2, false, -1, has_chance, chance);
         }
 
     }
-
-
-
-    // Debugging information.
-    if (deterministic && !has_base) {
-//        printf("Deterministic!\t");
-//        for (int w = 0; w < NUM_GENE_SLOTS; w++) {
-//            new_genes_0[w] = GENES[argmax2d[w][0]];
-//        }
-//        printf("%s\n", new_genes);
-
-        try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_0, false, -1, false, chance);
-
-    } else if (has_base) {
-
-        // only do shit if at most 1 ambiguous slot
-        if (num_slots_ambig <= 1) {
-            try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_0, true, base_idx, has_chance, chance);
-            try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_1, true, base_idx, has_chance, chance);
-            try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_2, true, base_idx, has_chance, chance);
-        }
-
-
-    }
-
-    return deterministic;
 
 }
 
@@ -599,7 +605,7 @@ int main() {
             while (true) {
 
                 // Crossbreed current batch of genes.
-//                crossbreed(ordered_table, running_table, &running_table_len, batch, mult_curr_iter, false, -1);
+                crossbreed(ordered_table, running_table, &running_table_len, batch, mult_curr_iter, false, -1);
 
                 // base plant might matter
                 if (2 <= mult_curr_iter && mult_curr_iter <= 5) {
