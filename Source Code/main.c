@@ -15,10 +15,10 @@ char GENES[NUM_UNIQ_GENES] = {'G', 'H', 'Y', 'W', 'X'};
 #define NUM_GENE_SLOTS 6
 
 // Max number of iterations.
-#define MAX_ITER 25
+#define MAX_ITER 1000
 
 // Maximum breeding multiplicity.
-#define MAX_MULT 8
+#define MAX_MULT 5
 
 // A breed structure.
 typedef struct breed_t {
@@ -30,6 +30,7 @@ typedef struct breed_t {
     char genes_str[7];
     bool has_chance;
     double chance;
+    int gen;
 
 } breed_t;
 
@@ -166,7 +167,8 @@ void visualize(breed_t *breed, int depth) {
 bool try_add(breed_t* ordered_table[], breed_t* running_table[], int *running_table_len,
              const int batch[], int mult, char *new_genes,
              bool has_base, int base_idx,
-             bool has_chance, double chance) {
+             bool has_chance, double chance,
+             int gen) {
 
     int ordered_table_idx = get_index(new_genes);
     if (ordered_table[ordered_table_idx]) {
@@ -184,6 +186,9 @@ bool try_add(breed_t* ordered_table[], breed_t* running_table[], int *running_ta
             new_breed->has_chance = true;
             new_breed->chance = chance;
         }
+
+        // fill out depth
+        new_breed->gen = gen;
 
         // fill out parents
         new_breed->num_parents = mult;
@@ -203,9 +208,9 @@ bool try_add(breed_t* ordered_table[], breed_t* running_table[], int *running_ta
         *running_table_len += 1;
 
         // debugging info
-        printf("Trying to add %s", new_genes);
+        printf("Trying to add %s (gen %d)", new_genes, gen);
         if (has_chance) {
-            printf(" (with chance %f)", chance);
+            printf(" (chance %f)", chance);
         }
         printf("\n");
         if (has_base) {
@@ -223,11 +228,11 @@ bool try_add(breed_t* ordered_table[], breed_t* running_table[], int *running_ta
 //            exit(0);
 //        }
 
-//        if (check_good(new_breed->genes_str, "GHHWHG")) {
-//            printf("FOUND IT!\n");
-//            visualize(new_breed, 0);
-//            exit(0);
-//        }
+        if (check_good(new_breed->genes_str, "GGGYYY")) {
+            printf("FOUND IT!\n");
+            visualize(new_breed, 0);
+            exit(0);
+        }
 
 
     }
@@ -247,11 +252,17 @@ bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running
 //    }
 //    printf("\n");
 
+    int max_gen = 0;
+
     // Aggregate gene weight array.
     int W[NUM_GENE_SLOTS][NUM_UNIQ_GENES] = {0};
 
     // Add up all gene weights (skipping the base if there is one).
     for (int batch_idx = 0; batch_idx < mult; batch_idx++) {
+
+        if (running_table[batch[batch_idx]]->gen >= max_gen) {
+            max_gen = running_table[batch[batch_idx]]->gen + 1;
+        }
 
         // skip the base clone if there is one
         if (has_base && batch_idx == base_idx) {
@@ -523,15 +534,15 @@ bool crossbreed(breed_t* ordered_table[], breed_t* running_table[], int *running
 
     if (has_base) {
         // has base
-        try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_0, true, base_idx, has_chance, chance);
-        try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_1, true, base_idx, has_chance, chance);
-        try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_2, true, base_idx, has_chance, chance);
+        try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_0, true, base_idx, has_chance, chance, max_gen);
+        try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_1, true, base_idx, has_chance, chance, max_gen);
+        try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_2, true, base_idx, has_chance, chance, max_gen);
     } else {
         // no base
         if (!no_base_ignore) {
-            try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_0, false, -1, has_chance, chance);
-            try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_1, false, -1, has_chance, chance);
-            try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_2, false, -1, has_chance, chance);
+            try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_0, false, -1, has_chance, chance, max_gen);
+            try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_1, false, -1, has_chance, chance, max_gen);
+            try_add(ordered_table, running_table, running_table_len, batch, mult, new_genes_2, false, -1, has_chance, chance, max_gen);
         }
 
     }
@@ -552,7 +563,7 @@ int main() {
     int running_table_curr = 0;
 
     // Open data file.
-    FILE *file = fopen("../Data/Set 1.txt", "r");
+    FILE *file = fopen("../Data/Set 5.txt", "r");
     if (!file) {
         perror("fopen");
         exit(1);
@@ -567,6 +578,9 @@ int main() {
         breed->num_parents = 0;
         strncpy(breed->genes_str, line, 6);
         breed->score = get_score(breed->genes_str);
+
+        // gen
+        breed->gen = 0;
 
         // Calculate index and fill out pointers in the tables.
         int index = get_index(breed->genes_str);
